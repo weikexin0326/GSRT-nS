@@ -1,25 +1,5 @@
 function out = diff_network_sociopatterns_dynamics_time_with_tauA_panelCsplit(data_file)
-% ============================================================
-% GSRT-nSIS on different topologies (theory only)
-% SocioPatterns 2012 high school static aggregation
-% vs matched ER / BA / WS
-%
-% 输出：
-%   左图  rho(t)
-%   中图  x(t)
-%   右图  同时统计四类网络的 tau_ss 和 tau_A
-%
-%   tau_A 定义为：
-%   tau_A = inf { t : x(t) >= x(0) + 0.5 * [x* - x(0)] }
-%
-% 底层动力学逻辑对齐 theory代码.txt（PM1 + Weibull）
-% 并行计算：parfor
-% 自动保存：fig / jpg 到 “四月实验结果图”
-%
-% 用法：
-%   out = diff_network_sociopatterns_dynamics_time_with_tauA();
-%   out = diff_network_sociopatterns_dynamics_time_with_tauA('thiers_2012.csv');
-% ============================================================
+
     clc; clear; close all;
     
     if nargin < 1 || isempty(data_file)
