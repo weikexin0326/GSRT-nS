@@ -1,255 +1,320 @@
-function theory_out = theory_paper2_final1_2()
+import numpy as np
+from scipy import sparse
 
 
-    % ---------------- 1. 参数设置 ----------------
-    dt   = 0.01;
-    Tmax = 12;
-    nSteps = ceil(Tmax/dt);
-    t_series = (0:nSteps)' * dt;
+def theory_paper2_final1_2():
 
-    N     = 1000;
-    k_avg = 10;
+    dt = 0.01
+    Tmax = 12
+    n_steps = int(np.ceil(Tmax / dt))
+    t_series = np.arange(n_steps + 1) * dt
 
-    % Weibull Recovery
-    aR = 2.0; bR = 0.5;
+    N = 1000
+    k_avg = 10
 
-    % Weibull Attempt
-    aI_list = [0.6, 0.8, 1.0, 1.2];
+    # Weibull Recovery
+    aR = 2.0
+    bR = 0.5
 
-    % Dual modulation
-    betaA  = 1.2; betaN  = 1.0;
-    kappaA = 0.5; kappaN = 1.0;
-    chiA   = 0.4; chiN   = 1.0;
+    # Weibull Attempt
+    aI_list = np.array([0.6, 0.8, 1.0, 1.2], dtype=float)
 
-    % Memory kernel g(u) = gamma_mem * exp(-gamma_mem * u)
-    % When gamma_mem = 1, g(u) = exp(-u), matching the paper.
-    gamma_mem = 1.0;
+    # Dual modulation
+    betaA = 1.2
+    betaN = 1.0
+    kappaA = 0.5
+    kappaN = 1.0
+    chiA = 0.4
+    chiN = 1.0
 
-    % Game payoff
-    c   = 0.02;
-    uNN = 0.1;  uNA = 0.05;  uAA = 0.01;
-    behavior_dt = 1.0;
+    # Memory kernel g(u) = gamma_mem * exp(-gamma_mem * u)
+    # When gamma_mem = 1, g(u) = exp(-u), matching the paper.
+    gamma_mem = 1.0
 
-    % Initial conditions
-    init_rho = 0.05;
-    init_p   = 0.05;
+    # Game payoff
+    c = 0.02
+    uNN = 0.1
+    uNA = 0.05
+    uAA = 0.01
+    behavior_dt = 1.0
 
-    % Tail truncation for infection-age support
-    epsTail = 1e-8;
+    # Initial conditions
+    init_rho = 0.05
+    init_p = 0.05
 
-    % ---------------- 2. 网络构建 ----------------
-    rng(1);
-    Adj = ER_network(N, k_avg);
-    deg = full(sum(Adj,2));
-    deg = max(deg, 1e-20);
+    # Tail truncation for infection-age support
+    eps_tail = 1e-8
 
-    % ---------------- 3. 主循环 ----------------
-    numAlpha = numel(aI_list);
-    rho_mat = zeros(nSteps+1, numAlpha);
-    x_mat   = zeros(nSteps+1, numAlpha);
 
-    % Memory coefficients for exponential kernel
-    if gamma_mem > 0
-        decayH = exp(-gamma_mem*dt);
-        addH   = 1 - decayH;
-    else
-        decayH = 0;
-        addH   = 1;
-    end
+    rng = np.random.default_rng(1)
+    Adj = ER_network(N, k_avg, rng)
+    deg = np.asarray(Adj.sum(axis=1)).ravel()
+    deg = np.maximum(deg, 1e-20)
 
-    fprintf('THEORY: core-mechanism version aligned with paper (no Jensen).\n');
 
-    for ai_idx = 1:numAlpha
-        aI = aI_list(ai_idx);
-        fprintf('  alpha_I = %.2f ...\n', aI);
+    num_alpha = len(aI_list)
+    rho_mat = np.zeros((n_steps + 1, num_alpha), dtype=float)
+    x_mat = np.zeros((n_steps + 1, num_alpha), dtype=float)
 
-        % ---- Infection-age truncation from recovery survival ----
-        tauI_max = bR * (log(1/epsTail))^(1/aR);
-        L_I = ceil(min(Tmax, tauI_max)/dt) + 1;
+    # Memory coefficients for exponential kernel
+    if gamma_mem > 0:
+        decayH = np.exp(-gamma_mem * dt)
+        addH = 1.0 - decayH
+    else:
+        decayH = 0.0
+        addH = 1.0
 
-        % 1. Recovery conditional probability in each dt interval
-        p_rec = weibull_condprob(L_I, dt, aR, bR);
-        s_rec = 1 - p_rec;
-        pRec = p_rec(:)';
-        sRec = s_rec(:)';
+    print("THEORY: core-mechanism version aligned with paper (no Jensen).")
 
-        % 2. Strategy-dependent infection-age kernel eta(tau_I | X)
-        %    eta_rate_X(n) approximates eta(tau_n | X) used in Eq. (14).
-        eta_rate_A = renewal_attempt_kernel(L_I, dt, aI, betaA);
-        eta_rate_N = renewal_attempt_kernel(L_I, dt, aI, betaN);
-        etaA = eta_rate_A(:);
-        etaN = eta_rate_N(:);
+    for ai_idx, aI in enumerate(aI_list):
+        print(f"  alpha_I = {aI:.2f} ...")
 
-        % ---- Initialization ----
-        % PA: probability / mass of adopting protection for each node
-        PA = zeros(N,1);
-        PA(randperm(N, max(1,round(init_p*N)))) = 1.0;
+        # ---- Infection-age truncation from recovery survival ----
+        tauI_max = bR * (np.log(1.0 / eps_tail)) ** (1.0 / aR)
+        L_I = int(np.ceil(min(Tmax, tauI_max) / dt)) + 1
 
-        % Infection-age masses separated by current strategy label
-        IA_age = zeros(N, L_I);
-        IN_age = zeros(N, L_I);
-        init_inf_idx = randperm(N, max(1,round(init_rho*N)));
-        IA_age(init_inf_idx,1) = PA(init_inf_idx);
-        IN_age(init_inf_idx,1) = 1 - PA(init_inf_idx);
+        # 1. Recovery conditional probability in each dt interval
+        p_rec = weibull_condprob(L_I, dt, aR, bR)
+        s_rec = 1.0 - p_rec
 
-        % Memory state H
-        H = zeros(N,1);
-        next_update_time = behavior_dt * rand(N,1);
+        # 2. Strategy-dependent infection-age kernel eta(tau_I | X)
+        eta_rate_A = renewal_attempt_kernel(L_I, dt, aI, betaA)
+        eta_rate_N = renewal_attempt_kernel(L_I, dt, aI, betaN)
+        etaA = eta_rate_A
+        etaN = eta_rate_N
 
-        rho_mat(1, ai_idx) = mean(sum(IA_age,2) + sum(IN_age,2));
-        x_mat(1, ai_idx)   = mean(PA);
+        # ---- Initialization ----
+        # PA: probability / mass of adopting protection for each node
+        PA = np.zeros(N, dtype=float)
+        num_init_p = max(1, int(np.round(init_p * N)))
+        PA[rng.permutation(N)[:num_init_p]] = 1.0
 
-        t_now = 0;
+        # Infection-age masses separated by current strategy label
+        IA_age = np.zeros((N, L_I), dtype=float)
+        IN_age = np.zeros((N, L_I), dtype=float)
 
-        for step = 1:nSteps
-            t_end = t_now + dt;
+        num_init_inf = max(1, int(np.round(init_rho * N)))
+        init_inf_idx = rng.permutation(N)[:num_init_inf]
+        IA_age[init_inf_idx, 0] = PA[init_inf_idx]
+        IN_age[init_inf_idx, 0] = 1.0 - PA[init_inf_idx]
 
-            % ---------------- (1) Current infected masses ----------------
-            IA_before = sum(IA_age, 2);
-            IN_before = sum(IN_age, 2);
-            I_before  = IA_before + IN_before;
+        # Memory state H
+        H = np.zeros(N, dtype=float)
+        next_update_time = behavior_dt * rng.random(N)
 
-            % ---------------- (2) Source-side pressure (Eq. 14) ----------
-            % Phi_j(t) = int kappa_X * eta(tau_I | X) * I_j(tau_I; t) d tau_I
-            phi_A = kappaA * (IA_age * etaA);
-            phi_N = kappaN * (IN_age * etaN);
-            Phi   = phi_A + phi_N;
+        rho_mat[0, ai_idx] = np.mean(IA_age.sum(axis=1) + IN_age.sum(axis=1))
+        x_mat[0, ai_idx] = np.mean(PA)
 
-            % ---------------- (3) Spatial aggregation (Eq. 15) -----------
-            Lambda = Adj * Phi;
+        t_now = 0.0
 
-            % ---------------- (4) Memory evolution (Eq. 16) --------------
-            % For g(u) = gamma * exp(-gamma u):
-            % dH/dt = -gamma H + gamma Lambda
-            if gamma_mem > 0
-                H = decayH * H + addH * Lambda;
-            else
-                H = Lambda;
-            end
-            H = max(H, 0);
+        # broadcast 用
+        sRec = s_rec.reshape(1, -1)
 
-            % ---------------- (5) Infection (Eq. 17) ---------------------
-            SA = max(0, PA - IA_before);
-            SN = max(0, (1 - PA) - IN_before);
+        for step in range(n_steps):
+            t_end = t_now + dt
 
-            p_inf_A = 1 - exp(-chiA * H * dt);
-            p_inf_N = 1 - exp(-chiN * H * dt);
-            p_inf_A = min(max(p_inf_A,0),1);
-            p_inf_N = min(max(p_inf_N,0),1);
+            # ---------------- (1) Current infected masses ----------------
+            IA_before = IA_age.sum(axis=1)
+            IN_before = IN_age.sum(axis=1)
+            I_before = IA_before + IN_before
 
-            newA = SA .* p_inf_A;
-            newN = SN .* p_inf_N;
+            # ---------------- (2) Source-side pressure (Eq. 14) ----------
+            # Phi_j(t) = int kappa_X * eta(tau_I | X) * I_j(tau_I; t) d tau_I
+            phi_A = kappaA * (IA_age @ etaA)
+            phi_N = kappaN * (IN_age @ etaN)
+            Phi = phi_A + phi_N
 
-            % ---------------- (6) Recovery + infection-age shift ---------
-            IA_surv = IA_age .* sRec;
-            IN_surv = IN_age .* sRec;
+            # ---------------- (3) Spatial aggregation (Eq. 15) -----------
+            Lambda = Adj @ Phi
 
-            IA_next = zeros(N, L_I);
-            IN_next = zeros(N, L_I);
-            IA_next(:,1) = newA;
-            IN_next(:,1) = newN;
-            IA_next(:,2:end) = IA_surv(:,1:end-1);
-            IN_next(:,2:end) = IN_surv(:,1:end-1);
+            # ---------------- (4) Memory evolution (Eq. 16) --------------
+            # For g(u) = gamma * exp(-gamma u):
+            # dH/dt = -gamma H + gamma Lambda
+            if gamma_mem > 0:
+                H = decayH * H + addH * Lambda
+            else:
+                H = Lambda.copy()
 
-            IA_age = IA_next;
-            IN_age = IN_next;
+            H = np.maximum(H, 0.0)
 
-            IA_after = sum(IA_age, 2);
-            IN_after = sum(IN_age, 2);
-            I_after  = IA_after + IN_after;
+            # ---------------- (5) Infection (Eq. 17) ---------------------
+            SA = np.maximum(0.0, PA - IA_before)
+            SN = np.maximum(0.0, (1.0 - PA) - IN_before)
 
-            % ---------------- (7) Game update (Eq. 3) --------------------
-            due = (next_update_time <= t_end + 1e-12);
-            if any(due)
-                neigh_A = Adj * PA;
-                neigh_N = deg - neigh_A;
-                rho_global = mean(I_after);
-                F_risk = 1 / max(1e-5, 1 - rho_global);
+            p_inf_A = 1.0 - np.exp(-chiA * H * dt)
+            p_inf_N = 1.0 - np.exp(-chiN * H * dt)
+            p_inf_A = np.clip(p_inf_A, 0.0, 1.0)
+            p_inf_N = np.clip(p_inf_N, 0.0, 1.0)
 
-                pi_N = uNN .* neigh_N + uNA .* neigh_A;
-                pi_A = (uNA - c) .* neigh_N + uAA .* neigh_A;
-                z_N = pi_N;
-                z_A = pi_A .* F_risk;
+            newA = SA * p_inf_A
+            newN = SN * p_inf_N
 
-                max_z = max(z_N, z_A);
-                prob_A = exp(z_A - max_z) ./ (exp(z_N - max_z) + exp(z_A - max_z) + 1e-20);
+            # ---------------- (6) Recovery + infection-age shift ---------
+            IA_surv = IA_age * sRec
+            IN_surv = IN_age * sRec
 
-                idx_due = find(due);
-                prob_due = prob_A(idx_due);
-                PA(idx_due) = prob_due;
+            IA_next = np.zeros((N, L_I), dtype=float)
+            IN_next = np.zeros((N, L_I), dtype=float)
 
-                % Repartition infected-age mass by the CURRENT strategy state.
-                % This keeps the theory aligned with the paper's mechanism,
-                % where current strategy determines kappa_X, chi_X, eta(.|X).
-                I_age_total = IA_age(idx_due,:) + IN_age(idx_due,:);
-                IA_age(idx_due,:) = I_age_total .* prob_due;
-                IN_age(idx_due,:) = I_age_total .* (1 - prob_due);
+            IA_next[:, 0] = newA
+            IN_next[:, 0] = newN
 
-                next_update_time(idx_due) = next_update_time(idx_due) + behavior_dt;
-            end
+            if L_I > 1:
+                IA_next[:, 1:] = IA_surv[:, :-1]
+                IN_next[:, 1:] = IN_surv[:, :-1]
 
-            % ---------------- (8) Record ---------------------------------
-            rho_mat(step+1, ai_idx) = mean(sum(IA_age,2) + sum(IN_age,2));
-            x_mat(step+1, ai_idx)   = mean(PA);
-            t_now = t_end;
-        end
-    end
+            IA_age = IA_next
+            IN_age = IN_next
 
-    theory_out.t_series = t_series;
-    theory_out.rho = rho_mat;
-    theory_out.x = x_mat;
-    theory_out.aI_list = aI_list;
-    theory_out.params = struct('N',N,'dt',dt,'aR',aR,'betaA',betaA, ...
-                               'betaN',betaN,'kappaA',kappaA,'kappaN',kappaN, ...
-                               'chiA',chiA,'chiN',chiN,'gamma',gamma_mem, ...
-                               'behavior_dt',behavior_dt,'init_rho',init_rho, ...
-                               'init_p',init_p,'k_avg',k_avg,'Tmax',Tmax, ...
-                               'c',c,'uNN',uNN,'uNA',uNA,'uAA',uAA);
-end
+            IA_after = IA_age.sum(axis=1)
+            IN_after = IN_age.sum(axis=1)
+            I_after = IA_after + IN_after
 
-% ==== Helper Functions ====
-function pcond = weibull_condprob(L, dt, alpha, beta)
-    tau0 = (0:L-1)' * dt;
-    tau1 = tau0 + dt;
-    dH = (tau1./beta).^alpha - (tau0./beta).^alpha;
-    pcond = -expm1(-dH);
-    pcond = min(max(pcond,0),1)';
-end
+            # ---------------- (7) Game update (Eq. 3) --------------------
+            due = next_update_time <= (t_end + 1e-12)
 
-function eta_rate = renewal_attempt_kernel(L, dt, alpha, beta)
-% ------------------------------------------------------------
-% Discrete renewal version of Eq. (10):
-%   eta(t) = psi(t) + integral_0^t eta(s) psi(t-s) ds
-%
-% We work with bin probabilities q_mass(n) for the Weibull waiting-time:
-%   q_mass(n) = P(T in ((n-1)dt, n dt])
-%
-% eta_mass(n) is the expected number of attempt events occurring in the
-% nth time bin since infection, and eta_rate = eta_mass / dt.
-% ------------------------------------------------------------
-    tau0 = (0:L-1)' * dt;
-    tau1 = tau0 + dt;
+            if np.any(due):
+                neigh_A = Adj @ PA
+                neigh_N = deg - neigh_A
 
-    surv0 = exp(-(tau0./beta).^alpha);
-    surv1 = exp(-(tau1./beta).^alpha);
-    q_mass = surv0 - surv1;
-    q_mass = max(q_mass, 0);
+                rho_global = np.mean(I_after)
+                F_risk = 1.0 / max(1e-5, 1.0 - rho_global)
 
-    eta_mass = zeros(L,1);
-    eta_mass(1) = q_mass(1);
-    for n = 2:L
-        conv_sum = 0;
-        for m = 1:n-1
-            conv_sum = conv_sum + eta_mass(m) * q_mass(n-m);
-        end
-        eta_mass(n) = q_mass(n) + conv_sum;
-    end
+                pi_N = uNN * neigh_N + uNA * neigh_A
+                pi_A = (uNA - c) * neigh_N + uAA * neigh_A
 
-    eta_rate = eta_mass / dt;
-end
+                z_N = pi_N
+                z_A = pi_A * F_risk
 
-function A = ER_network(N, k_avg)
-    A = sprand(N, N, k_avg/(N-1));
-    A = spones(triu(A, 1));
-    A = A + A';
-end
+                max_z = np.maximum(z_N, z_A)
+                prob_A = np.exp(z_A - max_z) / (
+                    np.exp(z_N - max_z) + np.exp(z_A - max_z) + 1e-20
+                )
+
+                idx_due = np.where(due)[0]
+                prob_due = prob_A[idx_due]
+                PA[idx_due] = prob_due
+
+                # Repartition infected-age mass by the CURRENT strategy state.
+                # This keeps the theory aligned with the paper's mechanism,
+                # where current strategy determines kappa_X, chi_X, eta(.|X).
+                I_age_total = IA_age[idx_due, :] + IN_age[idx_due, :]
+                IA_age[idx_due, :] = I_age_total * prob_due[:, None]
+                IN_age[idx_due, :] = I_age_total * (1.0 - prob_due)[:, None]
+
+                next_update_time[idx_due] += behavior_dt
+
+            # ---------------- (8) Record ---------------------------------
+            rho_mat[step + 1, ai_idx] = np.mean(IA_age.sum(axis=1) + IN_age.sum(axis=1))
+            x_mat[step + 1, ai_idx] = np.mean(PA)
+
+            t_now = t_end
+
+    theory_out = {
+        "t_series": t_series,
+        "rho": rho_mat,
+        "x": x_mat,
+        "aI_list": aI_list,
+        "params": {
+            "N": N,
+            "dt": dt,
+            "aR": aR,
+            "bR": bR,
+            "betaA": betaA,
+            "betaN": betaN,
+            "kappaA": kappaA,
+            "kappaN": kappaN,
+            "chiA": chiA,
+            "chiN": chiN,
+            "gamma": gamma_mem,
+            "behavior_dt": behavior_dt,
+            "init_rho": init_rho,
+            "init_p": init_p,
+            "k_avg": k_avg,
+            "Tmax": Tmax,
+            "c": c,
+            "uNN": uNN,
+            "uNA": uNA,
+            "uAA": uAA,
+        },
+    }
+
+    return theory_out
+
+
+# ==== Helper Functions ====
+
+def weibull_condprob(L, dt, alpha, beta):
+    tau0 = np.arange(L, dtype=float) * dt
+    tau1 = tau0 + dt
+    dH = (tau1 / beta) ** alpha - (tau0 / beta) ** alpha
+    pcond = -np.expm1(-dH)
+    pcond = np.clip(pcond, 0.0, 1.0)
+    return pcond
+
+
+def renewal_attempt_kernel(L, dt, alpha, beta):
+    """
+    Discrete renewal version of Eq. (10):
+      eta(t) = psi(t) + integral_0^t eta(s) psi(t-s) ds
+
+    We work with bin probabilities q_mass(n) for the Weibull waiting-time:
+      q_mass(n) = P(T in ((n-1)dt, n dt])
+
+    eta_mass(n) is the expected number of attempt events occurring in the
+    nth time bin since infection, and eta_rate = eta_mass / dt.
+    """
+    tau0 = np.arange(L, dtype=float) * dt
+    tau1 = tau0 + dt
+
+    surv0 = np.exp(-((tau0 / beta) ** alpha))
+    surv1 = np.exp(-((tau1 / beta) ** alpha))
+    q_mass = surv0 - surv1
+    q_mass = np.maximum(q_mass, 0.0)
+
+    eta_mass = np.zeros(L, dtype=float)
+    eta_mass[0] = q_mass[0]
+
+    for n in range(1, L):
+        conv_sum = 0.0
+        for m in range(n):
+            conv_sum += eta_mass[m] * q_mass[n - 1 - m]
+        eta_mass[n] = q_mass[n] + conv_sum
+
+    eta_rate = eta_mass / dt
+    return eta_rate
+
+
+def ER_network(N, k_avg, rng=None):
+    """
+    MATLAB:
+        A = sprand(N, N, k_avg/(N-1));
+        A = spones(triu(A, 1));
+        A = A + A';
+
+
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    p = k_avg / (N - 1)
+
+    upper_mask = rng.random((N, N)) < p
+    upper_mask = np.triu(upper_mask, k=1)
+
+    rows, cols = np.where(upper_mask)
+    data = np.ones(len(rows), dtype=float)
+
+    A_upper = sparse.csr_matrix((data, (rows, cols)), shape=(N, N))
+    A = A_upper + A_upper.T
+    return A
+
+
+if __name__ == "__main__":
+    result = theory_paper2_final1_2()
+
+    print("\nDone.")
+    print("t_series shape:", result["t_series"].shape)
+    print("rho shape:", result["rho"].shape)
+    print("x shape:", result["x"].shape)
+    print("aI_list:", result["aI_list"])
