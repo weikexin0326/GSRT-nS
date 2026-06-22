@@ -1,9 +1,5 @@
 function exp6_pulse_disturbance_aligned_to_theory_new11()
 % ============================================================
-% Figure 6 / Pulse & Step Disturbance Experiment
-% 底层理论求解器已对齐 theory代码.txt
-% 其余实验结构、场景设置与原代码保持一致。
-% ============================================================
 
 clc; clear; close all;
 
