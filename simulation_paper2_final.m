@@ -1,41 +1,6 @@
 function sim_out = simulation_paper2_final()
 % ============================================================
-% 包含特性：
-% 1. [关键修正] S->I 时，重置该节点所有出边的传播尝试年龄 (tau_e = 0)。
-% 2. [并行计算] 使用 parfor 加速 run_reps 循环。
-% 3. [双重调控] 完整的非马尔可夫传播 + 演化博弈双向耦合。
-% 4. [高效实现] 向量化计算 + 邻接表预索引。
-% τ_a (代码中的 tau_e): 不重置，继续累积。
-% τ_a 代表的是"自上次传播尝试以来经过的时间”。这是一个物理事实。一个感染者改变策略，并不会改变他上一次传播尝试的时间。因此，τ_a 的计时器应该继续走。
-% β_X (代码中的 beta_eff): 立即更新。
-% β_X 代表的是当前策略下的传播尝试时间尺度。当一个感染者改变策略，他产生下一次传播尝试的"频率"或“节奏”会立刻改变。因此，在计算下一个时间步的尝试发生概率时，必须使用新策略对应的 β_X 值。
 
-% Behavior update:异步 (asynchronous staggered phases, same period Tb)
-% ------------------------------------------------------------
-% Each node i has a phase phi_i ~ U(0,behavior_dt). It updates at times:
-%   t_i(m) = phi_i + m*behavior_dt,  m=0,1,2,...
-% Within each small dt step, we collect nodes whose next update time <= t_end,
-% and update those nodes simultaneously using the snapshot at t_end.
-%
-% Outputs:
-%   sim_out.t_series   : time grid (Tn x 1)
-%   sim_out.aI_list    : list of alpha_I values
-%   sim_out.rho_mean   : mean infection ratio over run_reps (Tn x numAlpha)
-%   sim_out.x_mean     : mean protection ratio over run_reps (Tn x numAlpha)
-%   sim_out.params     : params struct
-%
-% Strategy vector name:
-%   X_celue : N x 1 (0=N, 1=A)
-% Time series name:
-%   t_series : 1 x Tn (stored as column in output)
-%
-% Key modeling detail:
-%   Maintain edge age tau_e (since last attempt).
-%   Each dt, attempt occurs with conditional prob:
-%     p = 1-exp( -[( (tau+dt)/beta )^aI - (tau/beta)^aI ] )
-%   事件在 tau 时刻还未发生的情况下，在接下来的 [tau, tau + dt] 时间段内发生的概率[weibull分布]
-%   beta depends on CURRENT source strategy, but tau does NOT reset when strategy changes.
-% ============================================================
 
     % ---------------- 1. 参数设置 (Parameters) ----------------
     % 时间相关
