@@ -1,21 +1,4 @@
 %% diff_distfamily_threshold_heatmaps_PM3.m
-% PM3: threshold-distance heatmaps in the (kappa_1, zeta_1) plane
-% for three transmission-attempt waiting-time families under the
-% median-matched scheme.
-%
-% Families:
-%   1) Weibull        (alpha_W  = 0.8)
-%   2) Log-logistic   (alpha_LL = 2.0)
-%   3) Lomax          (a_L      = 2.0)
-%
-% Median-matched rule:
-%   The adopter / non-adopter medians are matched to the baseline Weibull
-%   setting used in the paper-consistent calculation:
-%       alpha_W = 0.8, beta_A = 1.2, beta_N = 1.0
-%
-% Output:
-%   四月实验结果图/diff_distfamily_threshold_heatmaps_PM3.fig
-%   四月实验结果图/diff_distfamily_threshold_heatmaps_PM3.jpg
 
 clc; clear; close all;
 
