@@ -1,28 +1,6 @@
 function out = diff_distfamily_rho_x_compare_beta()
 % ============================================================
-% PM1: Pure-theory comparison of transmission-attempt waiting-time families
-% under two matching schemes:
-%   (1) median-matched across families
-%   (2) fixed beta_A = 1.2, beta_N = 1.0 across families
-%
-% Theory semantics are aligned with the uploaded
-% theory_paper2_final1_2() "core-mechanism" version:
-%   - No explicit attempt-age mass states EA/EN
-%   - Source pressure computed from infection-age densities via eta(tau_I|X)
-%   - Infection probability: P_inf = 1 - exp(-chi_X * H * dt)
-%   - No Jensen correction
-%
-% Output:
-%   out.t_series
-%   out.curves.(scheme).(dist).rho / x
-%   out.tss.(scheme).(dist)
-%   out.fig_path
-%   out.jpg_path
-%
-% Result figure is saved to folder:
-%   四月实验结果图
-% in both .fig and .jpg formats.
-% ============================================================
+
 
     clc; clear; close all;
     %% ---------------- 1. Base parameters (PM1, same as theory baseline) ----------------
