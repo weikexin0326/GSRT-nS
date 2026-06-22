@@ -1,38 +1,5 @@
 function out = degree_behavior_infection_ER_PM123_theory()
-% ============================================================
-% Degree-Behavior-Infection correlation experiment for GSRT-nSIS
-% on a fixed ER network, extended to PM1 / PM2 / PM3.
-% ------------------------------------------------------------
-% This version is modified STRICTLY on top of the original experiment idea:
-%   - keep the same ER network / degree grouping / PM1-PM3 overlay;
-%   - keep repeated runs + averaging, to reduce the effect of random
-%     initial allocations of infection/protection and random behaviour clocks;
-%   - replace the bottom-layer Monte Carlo simulator by the node-level
-%     THEORY solver aligned with "theory代码.txt".
-%
-% The aligned theory solver uses:
-%   1) infection-age densities IA_age / IN_age,
-%   2) source pressure Phi from the renewal attempt kernel eta(.),
-%   3) exponential memory H,
-%   4) Weibull recovery,
-%   5) asynchronous game update with local neighbour payoffs,
-%   6) repartition of infected-age mass by current strategy probability PA.
-%
-% Degree-resolved observables:
-%   1) x(k)    : steady-state average protection level in degree group k
-%   2) rho(k)  : steady-state average infection level in degree group k
-%   3) qIN(k)  : steady-state average I-N mass in degree group k
-%   4) tauA(k) : first time x_k(t) reaches
-%                x_k(0) + frac_tauA * (x_k^* - x_k(0))
-%
-% Output:
-%   out : struct containing network, grouped statistics, PM1/2/3 results,
-%         and figure handle.
-%
-% Notes:
-%   - If Parallel Computing Toolbox is unavailable, replace PARFOR by FOR.
-%   - This code saves the figure to folder "四月实验结果图" as FIG and JPG.
-% ============================================================
+
 
     clc; clear; close all;
 
