@@ -1,28 +1,5 @@
 function theory_out = theory_paper2_final1_2()
-% ============================================================
-% THEORY (Core-Mechanism Version, aligned with the paper):
-% 去除二阶矫正
-% This version removes the second-order Jensen correction and keeps only
-% the paper's core mechanism layer:
-%   1. Game-driven behavioural updating;
-%   2. Source-side infectivity modulation via kappa_X;
-%   3. Receiver-side susceptibility modulation via chi_X;
-%   4. Non-Markovian transmission timing via eta(tau_I | X);
-%   5. Memory accumulation H through the kernel g(u).
-%
-% IMPORTANT ALIGNMENT CHOICES:
-% - No explicit edge-age mass variables EA / EN are used.
-% - Source pressure is computed directly from infection-age densities,
-%   following Eq. (14) in the paper.
-% - Infection probability uses:
-%       P_inf = 1 - exp(-chi * H * dt)
-%   with NO Jensen correction.
-% - Threshold calculation and steady-state self-consistency equations are
-%   intentionally NOT included here.
-%
-% Output fields and function name are kept compatible with the original
-% code to avoid downstream variable-extraction errors.
-% ============================================================
+
 
     % ---------------- 1. 参数设置 ----------------
     dt   = 0.01;
